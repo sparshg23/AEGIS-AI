@@ -1,9 +1,14 @@
 'use client';
-import Image from "next/image";
 import { useState, useEffect } from "react";
+import RiskScoreGauge from "./components/RiskScoreGauge";
+import CisoBriefing from "./components/CisoBriefing";
+import StrategicBriefingCard from "./components/StrategicBriefingCard";
+import { useThreats } from "./hooks/useThreats";
+import { formatDistanceToNow } from "date-fns";
 
 export default function Home() {
   const [dots, setDots] = useState('');
+  const { data, error, isLoading } = useThreats(3000);
 
   // Scanning animation effect
   useEffect(() => {
@@ -12,6 +17,8 @@ export default function Home() {
     }, 500);
     return () => clearInterval(interval);
   }, []);
+
+  const avgRiskScore = data?.avgRiskScore || 50;
 
   return (
     <div className="flex min-h-screen bg-gray-900 text-gray-100">
@@ -39,7 +46,7 @@ export default function Home() {
       {/* Main Content */}
       <div className="flex-1 p-8">
         {/* Header */}
-        <header className="flex justify-between items-center mb-8">
+        <header className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold tracking-wider">
             AEGIS // ACTIVE DEFENSE SYSTEM
           </h1>
@@ -49,12 +56,23 @@ export default function Home() {
           </div>
         </header>
 
+        {/* Strategic Briefing */}
+        <div className="mb-6">
+          <StrategicBriefingCard />
+        </div>
+
         {/* Main Grid */}
         <div className="grid grid-cols-2 gap-6 mb-6">
-          {/* Threat Level Card */}
-          <div className="bg-gray-800 p-6 rounded-lg">
-            <h2 className="text-gray-400 mb-2 text-sm font-medium">THREAT LEVEL</h2>
-            <div className="text-yellow-400 text-4xl font-bold">MODERATE</div>
+          <div className="space-y-6">
+            {/* Threat Level Card */}
+            <div className="bg-gray-800 p-6 rounded-lg relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <h2 className="text-gray-400 mb-2 text-sm font-medium">THREAT LEVEL</h2>
+              <RiskScoreGauge score={avgRiskScore} />
+            </div>
+
+            {/* CISO Briefing */}
+            <CisoBriefing />
           </div>
 
           {/* Live Map */}
@@ -80,24 +98,34 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody className="text-gray-300">
-                <tr className="border-t border-gray-700">
-                  <td className="py-4">2025-08-12 15:42:31</td>
-                  <td className="py-4">192.168.1.105</td>
-                  <td className="py-4">SQL Injection</td>
-                  <td className="py-4 text-red-400">Blocked</td>
-                </tr>
-                <tr className="border-t border-gray-700">
-                  <td className="py-4">2025-08-12 15:40:15</td>
-                  <td className="py-4">192.168.1.223</td>
-                  <td className="py-4">XSS Attempt</td>
-                  <td className="py-4 text-red-400">Blocked</td>
-                </tr>
-                <tr className="border-t border-gray-700">
-                  <td className="py-4">2025-08-12 15:38:52</td>
-                  <td className="py-4">192.168.1.187</td>
-                  <td className="py-4">Brute Force</td>
-                  <td className="py-4 text-yellow-400">Rate Limited</td>
-                </tr>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-gray-500">
+                      Loading threat data...
+                    </td>
+                  </tr>
+                ) : error ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-red-400">
+                      Error loading threat data
+                    </td>
+                  </tr>
+                ) : (
+                  data?.threats.map((threat) => (
+                    <tr key={threat.id} className="border-t border-gray-700 hover:bg-gray-800/50 transition-colors">
+                      <td className="py-4">{formatDistanceToNow(new Date(threat.detected_at))} ago</td>
+                      <td className="py-4">{threat.ip_address}</td>
+                      <td className="py-4">{threat.reason}</td>
+                      <td className={`py-4 ${
+                        threat.action_taken === 'Blocked' ? 'text-red-400' :
+                        threat.action_taken === 'Rate Limited' ? 'text-yellow-400' :
+                        'text-green-400'
+                      }`}>
+                        {threat.action_taken}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
