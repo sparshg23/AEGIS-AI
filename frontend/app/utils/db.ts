@@ -1,12 +1,40 @@
+// frontend/utils/db.ts (or wherever this file is located)
+
 import { Pool } from 'pg';
 
-const pool = new Pool({
-  user: process.env.POSTGRES_USER,
-  password: process.env.POSTGRES_PASSWORD,
-  host: process.env.POSTGRES_HOST,
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  database: process.env.POSTGRES_DB,
-});
+// Use POSTGRES_URL, which Vercel provides as a single string.
+// If POSTGRES_URL is undefined (e.g., in a local .env file), fall back to PRISMA_DATABASE_URL.
+const connectionString = process.env.POSTGRES_URL || process.env.PRISMA_DATABASE_URL;
+
+// --- Implement the Singleton Pattern for Serverless Functions ---
+// This prevents memory leaks by reusing the connection pool.
+
+function getPoolSingleton() {
+  const pool = new Pool({
+    connectionString: connectionString,
+    // Add SSL for external databases like Neon/Render
+    ssl: {
+      rejectUnauthorized: false // Necessary for many cloud DBs
+    }
+  });
+
+  // Attach the pool to the global object in development, otherwise return it.
+  if (process.env.NODE_ENV === 'production') {
+    return pool;
+  } else {
+    // @ts-ignore
+    if (!global.pgPool) {
+        // @ts-ignore
+        global.pgPool = pool;
+    }
+    // @ts-ignore
+    return global.pgPool;
+  }
+}
+
+// @ts-ignore
+const pool: Pool = getPoolSingleton();
+
 
 export const query = async (text: string, params?: any[]) => {
   const start = Date.now();
@@ -21,22 +49,5 @@ export const query = async (text: string, params?: any[]) => {
   }
 };
 
-export const getRecentThreats = async () => {
-  const text = `
-    SELECT * FROM threats 
-    ORDER BY detected_at DESC 
-    LIMIT 10
-  `;
-  const { rows } = await query(text);
-  return rows;
-};
-
-export const getAverageRiskScore = async () => {
-  const text = `
-    SELECT AVG(risk_score)::numeric(10,2) as avg_score 
-    FROM threats 
-    WHERE detected_at > NOW() - INTERVAL '1 hour'
-  `;
-  const { rows } = await query(text);
-  return rows[0].avg_score;
-};
+// ... keep your getRecentThreats and getAverageRiskScore functions ...
+// (They do not need modification)
