@@ -6,6 +6,8 @@ import StrategicBriefingCard from "./components/StrategicBriefingCard";
 import { useThreats } from "./hooks/useThreats";
 import { formatDistanceToNow } from "date-fns";
 
+console.log("--- VERCEL STARTUP CHECKPOINT 1: CODE IS EXECUTING ---");
+
 export default function Home() {
   const [dots, setDots] = useState('');
   const { data, error, isLoading } = useThreats(3000);
