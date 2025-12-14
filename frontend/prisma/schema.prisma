@@ -3,9 +3,10 @@ generator client {
   
 }
 
+// Correct schema.prisma
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("PRISMA_DATABASE_URL")
 }
 
 model threats {
